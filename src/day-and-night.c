@@ -2,21 +2,26 @@
 
 static Window *main_window;
 
+// Various layers to be drawn
 static Layer *offscreen_layer;
 static Layer *sun_layer;
 static BitmapLayer *night_layer;
 static TextLayer *time_layer;
 static Layer *ring_layer;
 
+// Images to be used throughout app
 static GBitmap *stars;
 static GBitmap *sun;
 static GBitmap *moon;
 
+// Whether or not our API call has returned data
 bool data_loaded;
 
+// Current minute & hour
 int minute;
 int hour;
 
+// Sunrise & sunset times
 int hour_rise;
 int minute_rise;
 int hour_set;
@@ -29,6 +34,7 @@ enum {
   KEY_SUNSET_MINUTE = 3
 };
 
+// Called every minute
 static void update_time() {
   time_t temp = time(NULL); 
   struct tm *tick_time = localtime(&temp);
@@ -65,7 +71,7 @@ static void tick_handler(struct tm *tick_time, TimeUnits units_changed) {
 
 
 
-
+// Creates a transparent mask
 static void bitmap_make_transparent(GBitmap *bitmap, GBitmap *mask) {
   GRect bounds = gbitmap_get_bounds(mask);
   for (int y = bounds.origin.y; y < bounds.origin.y + bounds.size.h; y++) {
@@ -103,6 +109,7 @@ static void draw_circle(GContext *ctx, GRect rect, GColor color, int r, int deg)
   );  
 }
 
+// Place a specific time on the circluar dial
 static int degreeify(int hour, int minute) {
   int diff = ((hour * 60) + minute) * 360 / 1440;
   int degree = (diff + 180) % 360;
@@ -239,6 +246,7 @@ static void main_window_unload(Window *window) {
   bitmap_layer_destroy(night_layer);
   text_layer_destroy(time_layer);
   layer_destroy(ring_layer);
+  
   gbitmap_destroy(stars);
   gbitmap_destroy(sun);
   gbitmap_destroy(moon);
