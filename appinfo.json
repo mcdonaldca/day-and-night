@@ -1,8 +1,8 @@
 {
   "uuid": "8e07f8c1-e7d0-44cf-8261-a92b10772182",
-  "shortName": "Athan",
-  "longName": "Athan",
-  "companyName": "Cerin",
+  "shortName": "Day + Night",
+  "longName": "Day + Night",
+  "companyName": "Caitlin McDonald",
   "versionLabel": "1.0",
   "sdkVersion": "3",
   "targetPlatforms": ["chalk"],
@@ -13,8 +13,7 @@
     "KEY_SUNRISE_HOUR": 0,
     "KEY_SUNRISE_MINUTE": 1,
     "KEY_SUNSET_HOUR": 2,
-    "KEY_SUNSET_MINUTE": 3,
-    "KEY_PRAYER_TIMES": 4
+    "KEY_SUNSET_MINUTE": 3
   },
   "resources": {
     "media": [

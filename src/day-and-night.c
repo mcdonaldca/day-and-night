@@ -6,17 +6,14 @@ static Layer *offscreen_layer;
 static Layer *sun_layer;
 static BitmapLayer *night_layer;
 static TextLayer *time_layer;
-static Layer *prayer_layer;
 static Layer *ring_layer;
 
 static GBitmap *stars;
 static GBitmap *sun;
 static GBitmap *moon;
 
-bool loaded_prayers;
-bool loaded_sun_data;
+bool data_loaded;
 
-int second;
 int minute;
 int hour;
 
@@ -29,38 +26,15 @@ enum {
   KEY_SUNRISE_HOUR = 0,
   KEY_SUNRISE_MINUTE = 1,
   KEY_SUNSET_HOUR = 2,
-  KEY_SUNSET_MINUTE = 3,
-  KEY_PRAYER_TIMES = 4
+  KEY_SUNSET_MINUTE = 3
 };
 
 static void update_time() {
   time_t temp = time(NULL); 
   struct tm *tick_time = localtime(&temp);
   
-  second = tick_time->tm_sec;
   minute = tick_time->tm_min;
   hour = tick_time->tm_hour;
-
-  int hour_fajr = 6;
-  int minute_fajr = 0;
-  int hour_dhuhr = 12;
-  int minute_dhuhr = 56;
-  int hour_asr = 16;
-  int minute_asr = 11;
-  int hour_maghrib = 18;
-  int minute_maghrib = 46;
-  int hour_isha = 22;
-  int minute_isha = 45;
-
-  if ( (hour == hour_fajr && minute == minute_fajr) ||
-    (hour == hour_dhuhr && minute == minute_dhuhr) ||
-    (hour == hour_asr && minute == minute_asr) ||
-    (hour == hour_maghrib && minute == minute_maghrib) ||
-    (hour == hour_isha && minute == minute_isha)) {
-    vibes_long_pulse();
-  }
-
-  
 
   // Create a long-lived buffer
   static char buffer[] = "00:00";
@@ -136,7 +110,7 @@ static int degreeify(int hour, int minute) {
 }
 
 static void sun_layer_update(Layer *layer, GContext *ctx) {
-  if (loaded_prayers && loaded_sun_data) {
+  if (data_loaded) {
     const GRect entire_screen = GRect(0, 0, 180, 180);
     const GRect sun_outline_rect = GRect(70, 70, 40, 40);
     const GRect sun_rect = GRect(72, 72, 36, 36);
@@ -167,7 +141,7 @@ static void sun_layer_update(Layer *layer, GContext *ctx) {
 }
 
 static void offscreen_layer_update(Layer* layer, GContext *ctx) {
-  if (loaded_prayers && loaded_sun_data) {
+  if (data_loaded) {
     GRect bounds = layer_get_bounds(layer);
 
     // Draw the night slice
@@ -192,61 +166,8 @@ static void offscreen_layer_update(Layer* layer, GContext *ctx) {
   }
 }
 
-static void prayer_layer_update(Layer *layer, GContext *ctx) {
-  if (loaded_prayers && loaded_sun_data) {
-    const GRect time_orbit = GRect(10, 10, 160, 160);
-
-    int degree_rise = degreeify(hour_rise, minute_rise);
-    int degree_set = degreeify(hour_set, minute_set);
-
-    int hour_fajr = 6;
-    int minute_fajr = 0;
-    int hour_dhuhr = 12;
-    int minute_dhuhr = 56;
-    int hour_asr = 16;
-    int minute_asr = 11;
-    int hour_maghrib = 18;
-    int minute_maghrib = 46;
-    int hour_isha = 22;
-    int minute_isha = 45;
-
-    int degrees[5] = {
-      degreeify(hour_fajr, minute_fajr),
-      degreeify(hour_dhuhr, minute_dhuhr),
-      degreeify(hour_asr, minute_asr),
-      degreeify(hour_maghrib, minute_maghrib),
-      degreeify(hour_isha, minute_isha)
-    };
-
-    int i;
-    for (i = 0; i < 5; i++) {
-      graphics_context_set_fill_color(
-        ctx,
-        degrees[i] >= degree_set && degrees[i] <= degree_rise ? GColorOxfordBlue : GColorVividCerulean
-      );
-
-      const GRect space = grect_centered_from_polar(
-        time_orbit,
-        GOvalScaleModeFitCircle,
-        DEG_TO_TRIGANGLE(degrees[i]),
-        GSize(6, 6)
-      );
-
-      graphics_fill_radial(
-        ctx, space, 
-        GOvalScaleModeFillCircle,
-        3,
-        DEG_TO_TRIGANGLE(0),
-        TRIG_MAX_ANGLE
-      ); 
-    }
-
-    graphics_context_set_fill_color(ctx, GColorOxfordBlue);
-  }
-}
-
 static void ring_layer_update(Layer *layer, GContext *ctx) {
-  if (loaded_prayers && loaded_sun_data) {
+  if (data_loaded) {
     const GRect entire_screen = GRect(0, 0, 180, 180);
     draw_circle(ctx, entire_screen, GColorWhite, 20, 360);
     graphics_context_set_stroke_color(ctx, GColorOxfordBlue);
@@ -294,9 +215,6 @@ static void main_window_load(Window *window) {
   bitmap_layer_set_bitmap(night_layer, stars);
   bitmap_layer_set_compositing_mode(night_layer, GCompOpSet);
 
-  prayer_layer = layer_create(GRect(0, 0, 180, 180));
-  layer_set_update_proc(prayer_layer, prayer_layer_update);
-
   sun = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_SUN);
   moon = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_MOON);
   ring_layer = layer_create(GRect(0, 0, 180, 180));
@@ -314,14 +232,12 @@ static void main_window_load(Window *window) {
   layer_add_child(window_get_root_layer(window), bitmap_layer_get_layer(night_layer));
   layer_add_child(window_get_root_layer(window), text_layer_get_layer(time_layer));
   layer_add_child(window_get_root_layer(window), ring_layer);
-  layer_add_child(window_get_root_layer(window), prayer_layer);
 }
 static void main_window_unload(Window *window) {
   layer_destroy(offscreen_layer);
   layer_destroy(sun_layer);
   bitmap_layer_destroy(night_layer);
   text_layer_destroy(time_layer);
-  layer_destroy(prayer_layer);
   layer_destroy(ring_layer);
   gbitmap_destroy(stars);
   gbitmap_destroy(sun);
@@ -350,26 +266,18 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
       case KEY_SUNRISE_HOUR:
         hour_rise = (int)t->value->int32;
         APP_LOG(APP_LOG_LEVEL_INFO, "C code received sunrise hour %d", hour_rise);
-        loaded_sun_data = true;
         break;
       case KEY_SUNRISE_MINUTE:
         minute_rise = (int)t->value->int32;
         APP_LOG(APP_LOG_LEVEL_INFO, "C code received sunrise minute %d", minute_rise);
-        loaded_sun_data = true;
         break;
       case KEY_SUNSET_HOUR:
         hour_set = (int)t->value->int32;
         APP_LOG(APP_LOG_LEVEL_INFO, "C code received sunset hour %d", hour_set);
-        loaded_sun_data = true;
         break;
       case KEY_SUNSET_MINUTE:
         minute_set = (int)t->value->int32;
         APP_LOG(APP_LOG_LEVEL_INFO, "C code received sunset hour %d", minute_set);
-        loaded_sun_data = true;
-        break;
-      case KEY_PRAYER_TIMES:
-        APP_LOG(APP_LOG_LEVEL_INFO, "C code received prayer times %s", t->value->cstring);
-        loaded_prayers = true;
         break;
       default:
         APP_LOG(APP_LOG_LEVEL_ERROR, "Key %d not recognized!", (int)t->key);
@@ -379,6 +287,7 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
     // Look for next item
     t = dict_read_next(iterator);
   }
+  data_loaded = true;
   layer_mark_dirty(ring_layer);
 }
 
@@ -404,8 +313,7 @@ static void outbox_sent_callback(DictionaryIterator *iterator, void *context) {
 
 
 static void init() {
-  loaded_prayers = false;
-  loaded_sun_data = false;
+  data_loaded = false;
 
   // Create main Window element and assign to pointer
   main_window = window_create();

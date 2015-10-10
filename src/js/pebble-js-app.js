@@ -21,43 +21,7 @@ function appMessageSuccess(e, description) {
 	console.log(description + " info successfully sent to Pebble");
 }
 
-function prayerTimeAPISuccess(responseText) {
-	// responseText contains a JSON object with prayer time info
-	var json = JSON.parse(responseText);
-
-	var timesObj = json.items[0];
-
-	// parse the 5 prayer times
-	var fajr = timesObj.fajr;
-	console.log('JS received Fajr ' + fajr);
-	var dhuhr = timesObj.dhuhr;
-	console.log('JS received Dhuhr ' + dhuhr);
-	var asr = timesObj.asr;
-	console.log('JS received Asr ' + asr);
-	var maghrib = timesObj.maghrib;
-	console.log('JS received Maghrib ' + maghrib);
-	var isha = timesObj.isha;
-	console.log('JS received Isha ' + isha);
-
-	prayerTimes = fajr+","+dhuhr+","+asr+","+maghrib+","+isha;
-
-	// Assemble dictionary using our keys
-	var dictionary = {
-		'KEY_PRAYER_TIMES': prayerTimes
-	};
-
-	// Send to Pebble (C code)
-	Pebble.sendAppMessage(dictionary, 
-		function(e) {
-			console.log("Prayer time info sent to Pebble successfully");
-		},
-		function(e) {
-			console.log("Error sending prayer time info to Pebble");
-		}
-	);
-}
-
-function sunriseSunsetAPISuccess(responseText) {
+function sunDataAPISuccess(responseText) {
 	var json = JSON.parse(responseText);
 
 	var sunrise = json.results.sunrise;
@@ -71,7 +35,6 @@ function sunriseSunsetAPISuccess(responseText) {
 	console.log('JS received sunset ' + sunsetLocal);
 	var sunsetHour = sunsetLocal.getHours();
 	var sunsetMinute = sunsetLocal.getMinutes();
-
 	
 
 	var dictionary = {
@@ -92,7 +55,7 @@ function sunriseSunsetAPISuccess(responseText) {
 	);
 }
 
-function APIFailure(description, statusText) {
+function sunDataAPIFailure(description, statusText) {
 	console.log(description + " API request failed with status: " + statusText);
 }
 
@@ -104,14 +67,9 @@ function locationSuccess(pos) {
 	var lat = pos.coords.latitude;
 	var lon = pos.coords.longitude;
 
-	var prayerTimeUrl = 'http://muslimsalat.com/' + lat + ',' + lon +
-		'.json?key=f65cc83413888cde54722d1101f07002';
-  	// Send request to MuslimSalat
-  	xhrRequest(prayerTimeUrl, 'GET', prayerTimeAPISuccess, APIFailure, "Prayer time");
-
-  	var sunriseSunsetUrl = 'http://api.sunrise-sunset.org/json?lat='+lat+'&lng='+lon+'&formatted=0';
-  	// Send request to sunrise-sunset.org
-  	xhrRequest(sunriseSunsetUrl, 'GET', sunriseSunsetAPISuccess, APIFailure, "Sunrise/sunset");
+	var sunDataUrl = 'http://api.sunrise-sunset.org/json?lat='+lat+'&lng='+lon+'&formatted=0';
+	// Send request to sunrise-sunset.org
+	xhrRequest(sunDataUrl, 'GET', sunDataAPISuccess, sunDataAPIFailure, "Sunrise/sunset");
 
 }
 
@@ -133,12 +91,4 @@ Pebble.addEventListener('ready',
     		{timeout: 15000, maximumAge: 60000}
   		);
   	}
-);
-
-// Listen for when an AppMessage is received
-Pebble.addEventListener('appmessage',
-  	function(e) {
-    	console.log('AppMessage received!');
-    	getPrayerTimes();
-  	}                     
 );
